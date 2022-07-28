@@ -4,7 +4,7 @@ namespace Cake\Codeception\Lib\Generator;
 class Cest extends \Codeception\Lib\Generator\Cest
 {
 
-    protected $template = <<<EOF
+    protected string $template = <<<EOF
 <?php
 {{namespace}}
 

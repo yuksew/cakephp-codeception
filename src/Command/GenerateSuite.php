@@ -14,7 +14,7 @@ use Symfony\Component\Yaml\Yaml;
  */
 class GenerateSuite extends \Codeception\Command\GenerateSuite
 {
-    public function execute(InputInterface $input, OutputInterface $output)
+    public function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->addStyles($output);
         $suite = $input->getArgument('suite');
@@ -22,7 +22,7 @@ class GenerateSuite extends \Codeception\Command\GenerateSuite
 
         if ($this->containsInvalidCharacters($suite)) {
             $output->writeln("<error>Suite name '$suite' contains invalid characters. ([A-Za-z0-9_]).</error>");
-            return;
+            return 1;
         }
 
         $config = $this->getGlobalConfig();
@@ -107,6 +107,7 @@ EOF;
         $output->writeln("3. Run tests of this suite with <bold>codecept run $suite</bold> command");
 
         $output->writeln("<info>Suite $suite generated</info>");
+        return 0;
     }
 
     private function containsInvalidCharacters($suite)

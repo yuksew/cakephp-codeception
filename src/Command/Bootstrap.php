@@ -11,12 +11,13 @@ class Bootstrap extends \Codeception\Command\Bootstrap
     /**
      * {@inheritDoc}
      */
-    public function execute(InputInterface $input, OutputInterface $output)
+    public function execute(InputInterface $input, OutputInterface $output): int
     {
         $bootstrap = new BootstrapTemplate($input, $output);
         if ($input->getArgument('path')) {
             $bootstrap->initDir($input->getArgument('path'));
         }
         $bootstrap->setup();
+        return 0;
     }
 }

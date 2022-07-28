@@ -9,12 +9,12 @@ class Bootstrap extends BaseTemplate
 {
     // defaults
     protected $baseNamespace = 'App\\';
-    protected $supportDir = 'src/TestSuite/Codeception';
-    protected $outputDir = 'tmp/tests';
-    protected $dataDir = 'tests/Fixture';
-    protected $envsDir = 'tests/Envs';
+    protected string $supportDir = 'src/TestSuite/Codeception';
+    protected string $outputDir = 'tmp/tests';
+    protected string $dataDir = 'tests/Fixture';
+    protected string $envsDir = 'tests/Envs';
 
-    public function setup()
+    public function setup(): void
     {
         // Rewrite namespace
         $input = $this->input;
@@ -26,7 +26,7 @@ class Bootstrap extends BaseTemplate
         parent::setup();
     }
 
-    protected function createDirs()
+    protected function createDirs(): void
     {
          $this->createDirectoryFor('tests');
          $this->createEmptyDirectory($this->outputDir);
@@ -37,7 +37,7 @@ class Bootstrap extends BaseTemplate
          $this->gitIgnore($this->supportDir . '/_generated');
     }
 
-    public function createGlobalConfig()
+    public function createGlobalConfig(): void
     {
         $basicConfig = [
             'paths'    => [
@@ -76,7 +76,7 @@ EOF;
         $this->createFile($file, $content);
     }
 
-    protected function createFunctionalSuite($actor = 'Functional')
+    protected function createFunctionalSuite($actor = 'Functional'): void
     {
         $suiteConfig = <<<EOF
 # Codeception Test Suite Configuration
@@ -99,7 +99,7 @@ EOF;
         $this->createSuiteBootsrap('Functional');
     }
 
-    protected function createAcceptanceSuite($actor = 'Acceptance')
+    protected function createAcceptanceSuite($actor = 'Acceptance'): void
     {
         $suiteConfig = <<<EOF
 # Codeception Test Suite Configuration
@@ -121,7 +121,7 @@ EOF;
         $this->createSuiteBootsrap('Acceptance');
     }
 
-    protected function createUnitSuite($actor = 'Unit')
+    protected function createUnitSuite($actor = 'Unit'): void
     {
         $suiteConfig = <<<EOF
 # Codeception Test Suite Configuration

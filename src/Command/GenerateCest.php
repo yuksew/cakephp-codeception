@@ -7,7 +7,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class GenerateCest extends \Codeception\Command\GenerateCest
 {
-    public function execute(InputInterface $input, OutputInterface $output)
+    public function execute(InputInterface $input, OutputInterface $output): int
     {
         $suite = $input->getArgument('suite');
         $class = $input->getArgument('class');
@@ -21,15 +21,16 @@ class GenerateCest extends \Codeception\Command\GenerateCest
 
         if (file_exists($filename)) {
             $output->writeln("<error>Test $filename already exists</error>");
-            return;
+            return 1;
         }
         $gen = new CestGenerator($class, $config);
         $res = $this->createFile($filename, $gen->produce());
         if (!$res) {
             $output->writeln("<error>Test $filename already exists</error>");
-            return;
+            return 1;
         }
 
         $output->writeln("<info>Test was created in $filename</info>");
+        return 0;
     }
 }
