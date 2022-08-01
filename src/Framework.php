@@ -21,7 +21,7 @@ class Framework extends \Codeception\Lib\Framework
      *
      * @var array
      */
-    public $config = [
+    public array $config = [
         'autoFixtures' => true,
         'dropTables' => false,
         'cleanUpInsertedRecords' => true,
