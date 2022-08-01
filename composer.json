@@ -11,7 +11,8 @@
     ],
     "require": {
         "codeception/codeception": "^5.0",
-        "cakephp/cakephp": "^4.2"
+        "cakephp/cakephp": "^4.2",
+        "symfony/browser-kit": "^6.1"
     },
     "autoload": {
         "psr-4": {
