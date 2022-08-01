@@ -1,4 +1,5 @@
 <?php
+
 namespace Cake\Codeception;
 
 use Cake\Core\Configure;
@@ -7,13 +8,12 @@ use Cake\Http\Request;
 use Cake\Http\Response;
 use Cake\Http\Session;
 use Cake\Routing\DispatcherFactory;
-use Cake\Routing\Router;
-use Symfony\Component\BrowserKit\Client;
+use Symfony\Component\BrowserKit\AbstractBrowser;
 use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\BrowserKit\Request as BrowserKitRequest;
 use Symfony\Component\BrowserKit\Response as BrowserKitResponse;
 
-class Connector extends Client
+class Connector extends AbstractBrowser
 {
     /**
      * Associative array of CakePHP classes:
@@ -94,15 +94,14 @@ class Connector extends Client
             $this->getCookieJar()->set(new Cookie(
                 $cookie['name'],
                 $cookie['value'],
-                $cookie['expire'],
+                $cookie['expires'],
                 $cookie['path'],
                 $cookie['domain'],
                 $cookie['secure'],
-                $cookie['httpOnly']
+                $cookie['httponly']
             ));
         }
 
-        $response->sendHeaders();
         return new BrowserKitResponse(
             $response->getBody(),
             $response->getStatusCode(),
