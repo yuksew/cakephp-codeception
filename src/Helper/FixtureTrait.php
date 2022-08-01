@@ -79,9 +79,9 @@ trait FixtureTrait
         $this->testFilename = $test->getMetadata()->getFilename();
 
         if ($this->isCestHasFixtures($test)) {
-            $this->debugSection('Fixture', 'Test class is: ' . get_class($test->getTestClass()));
+            $this->debugSection('Fixture', 'Test class is: ' . get_class($test->getTestInstance()));
             $this->shutDownIfDbModuleLoaded();
-            $this->fixtureHolder = $this->setupFixtureHolder($test->getTestClass());
+            $this->fixtureHolder = $this->setupFixtureHolder($test->getTestInstance());
             $this->fixtureManager->fixturize($this->fixtureHolder);
 
             $this->debugSection('Fixture', 'Load fixtures: ' . implode(', ', $this->fixtureHolder->fixtures));
@@ -204,7 +204,7 @@ trait FixtureTrait
      */
     private function isCestHasFixtures($test)
     {
-        return $test instanceof Cest && property_exists($test->getTestClass(), 'fixtures');
+        return $test instanceof Cest && property_exists($test->getTestInstance(), 'fixtures');
     }
 
     /**
