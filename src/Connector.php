@@ -86,8 +86,8 @@ class Connector extends AbstractBrowser
     protected function filterResponse($response)
     {
         $this->cake['response'] = $response;
-        if (is_a($response, '\Zend\Diactoros\Response') && class_exists('\Cake\Http\ResponseTransformer')) {
-            $response = \Cake\Http\ResponseTransformer::toCake($response);
+        if (is_a($response, '\Laminas\Diactoros\Response')) {
+            $response = $this->convertToCakeResponse($response);
         }
 
         foreach ($response->getCookies() as $cookie) {
@@ -107,6 +107,98 @@ class Connector extends AbstractBrowser
             $response->getStatusCode(),
             $response->getHeaders()
         );
+    }
+
+    /**
+     * Convert to CakeResponse.
+     *
+     * @param \Laminas\Diactoros\Response $response
+     * @return void
+     */
+    private function convertToCakeResponse(\Laminas\Diactoros\Response $response)
+    {
+        $body = $this->parseBody($response);
+        $data = [
+            'status' => $response->getStatusCode(),
+            'body' => $body['body'],
+            'headers' => $response->getHeaders(),
+        ];
+        $cake = new Response($data);
+        if ($body['file']) {
+            $cake = $cake->withFile($body['file']);
+        }
+        $cookies = $this->parseCookies($response->getHeader('Set-Cookie'));
+        foreach ($cookies as $cookie) {
+            $cake = $cake->withCookie($cookie);
+        }
+        return $cake;
+    }
+
+    /**
+     * Parse response body.
+     *
+     * @param \Laminas\Diactoros\Response $response
+     * @return array
+     */
+    private function parseBody(\Laminas\Diactoros\Response $response)
+    {
+        $stream = $response->getBody();
+        if ($stream->getMetadata('wrapper_type') === 'plainfile') {
+            return ['body' => '', 'file' => $stream->getMetadata('uri')];
+        }
+        if ($stream->getSize() === 0) {
+            return ['body' => '', 'file' => false];
+        }
+        $stream->rewind();
+
+        return ['body' => $stream->getContents(), 'file' => false];
+    }
+
+    /**
+     * Parse cookies.
+     *
+     * @param array $cookieHeader
+     * @return array
+     */
+    private function parseCookies(array $cookieHeader)
+    {
+        $cookies = [];
+        foreach ($cookieHeader as $cookie) {
+            if (strpos($cookie, '";"') !== false) {
+                $cookie = str_replace('";"', '{__cookie_replace__}', $cookie);
+                $parts = preg_split('/\;[ \t]*/', $cookie);
+                $parts = str_replace('{__cookie_replace__}', '";"', $parts);
+            } else {
+                $parts = preg_split('/\;[ \t]*/', $cookie);
+            }
+
+            list($name, $value) = explode('=', array_shift($parts), 2);
+            $parsed = ['name' => $name, 'value' => urldecode($value)];
+
+            foreach ($parts as $part) {
+                if (strpos($part, '=') !== false) {
+                    list($key, $value) = explode('=', $part);
+                } else {
+                    $key = $part;
+                    $value = true;
+                }
+
+                $key = strtolower($key);
+                if ($key === 'httponly') {
+                    $key = 'httpOnly';
+                }
+                if ($key === 'expires') {
+                    $key = 'expire';
+                    $value = strtotime($value);
+                }
+                if (!isset($parsed[$key])) {
+                    $parsed[$key] = $value;
+                }
+            }
+            $cookies[] = $parsed;
+        }
+
+        return $cookies;
     }
 
     /**
