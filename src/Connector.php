@@ -6,8 +6,10 @@ use Cake\Core\Configure;
 use Cake\Event\Event;
 use Cake\Http\Request;
 use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Cake\Http\Session;
 use Cake\Routing\DispatcherFactory;
+use Cake\Utility\Hash;
 use Symfony\Component\BrowserKit\AbstractBrowser;
 use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\BrowserKit\Request as BrowserKitRequest;
@@ -63,18 +65,65 @@ class Connector extends AbstractBrowser
 
         $_ENV = $environment = ['REQUEST_METHOD' => $request->getMethod()] + $request->getServer();
 
+        $files = (array)$request->getFiles();
         $props = [
             'url' => $url,
             'post' => (array)$request->getParameters(),
-            'files' => (array)$request->getFiles(),
+            'files' => $files,
             'cookies' => (array)$request->getCookies(),
             'session' => $this->getSession(),
             'environment' => $environment,
         ];
 
-        $this->cake['request'] = new \Cake\Http\ServerRequest($props);
+        $request = new \Cake\Http\ServerRequest($props);
+        $this->cake['request'] = $this->marshalFiles($files, $request);
 
         return $this->cake['request'];
+    }
+
+    /**
+     * ServerRequestFactory::marshalFiles のコピー
+     *
+     * 該当のメソッドが protected で呼び出せない（そもそも構造がテストデータの生成に適していない）ので
+     * 同等の処理をコピーしている.
+     *
+     * @see \Cake\Http\ServerRequestFactory::marshalFiles()
+     * @param array $files
+     * @param \Cake\Http\ServerRequest $request
+     * @return \Cake\Http\ServerRequest
+     */
+    protected function marshalFiles(array $files, ServerRequest $request): ServerRequest
+    {
+        $files = \Laminas\Diactoros\normalizeUploadedFiles($files);
+        $request = $request->withUploadedFiles($files);
+
+        $parsedBody = $request->getParsedBody();
+        if (!is_array($parsedBody)) {
+            return $request;
+        }
+
+        if (Configure::read('App.uploadedFilesAsObjects', true)) {
+            $parsedBody = Hash::merge($parsedBody, $files);
+        } else {
+            // Make a flat map that can be inserted into body for BC.
+            $fileMap = Hash::flatten($files);
+            foreach ($fileMap as $key => $file) {
+                $error = $file->getError();
+                $tmpName = '';
+                if ($error === UPLOAD_ERR_OK) {
+                    $tmpName = $file->getStream()->getMetadata('uri');
+                }
+                $parsedBody = Hash::insert($parsedBody, (string)$key, [
+                    'tmp_name' => $tmpName,
+                    'error' => $error,
+                    'name' => $file->getClientFilename(),
+                    'type' => $file->getClientMediaType(),
+                    'size' => $file->getSize(),
+                ]);
+            }
+        }
+
+        return $request->withParsedBody($parsedBody);
     }
 
     /**
