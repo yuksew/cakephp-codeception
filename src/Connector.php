@@ -4,16 +4,19 @@ namespace Cake\Codeception;
 
 use Cake\Core\Configure;
 use Cake\Event\Event;
-use Cake\Http\Request;
 use Cake\Http\Response;
+use Cake\Http\Server;
 use Cake\Http\ServerRequest;
 use Cake\Http\Session;
-use Cake\Routing\DispatcherFactory;
 use Cake\Utility\Hash;
+use Exception;
+use Laminas\Diactoros\Response as LaminasDiactorosResponse;
+use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\BrowserKit\AbstractBrowser;
 use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\BrowserKit\Request as BrowserKitRequest;
 use Symfony\Component\BrowserKit\Response as BrowserKitResponse;
+use function Laminas\Diactoros\normalizeUploadedFiles;
 
 class Connector extends AbstractBrowser
 {
@@ -30,14 +33,14 @@ class Connector extends AbstractBrowser
      *
      * @var array
      */
-    public $cake;
+    public array $cake;
 
     /**
      * Get instance of the session.
      *
      * @return \Cake\Http\Session
      */
-    public function getSession()
+    public function getSession(): Session
     {
         if (!empty($this->cake['session'])) {
             return $this->cake['session'];
@@ -57,9 +60,9 @@ class Connector extends AbstractBrowser
      * Filters the BrowserKit request to the cake one.
      *
      * @param \Symfony\Component\BrowserKit\Request $request BrowserKit request.
-     * @return \Cake\Http\Request Cake request.
+     * @return \Cake\Http\ServerRequest Cake request.
      */
-    protected function filterRequest(BrowserKitRequest $request)
+    protected function filterRequest(BrowserKitRequest $request): ServerRequest
     {
         $url = preg_replace('/^https?:\/\/[a-z0-9\-\.]+/', '', $request->getUri());
 
@@ -75,7 +78,7 @@ class Connector extends AbstractBrowser
             'environment' => $environment,
         ];
 
-        $request = new \Cake\Http\ServerRequest($props);
+        $request = new ServerRequest($props);
         $this->cake['request'] = $this->marshalFiles($files, $request);
 
         return $this->cake['request'];
@@ -87,14 +90,14 @@ class Connector extends AbstractBrowser
      * 該当のメソッドが protected で呼び出せない（そもそも構造がテストデータの生成に適していない）ので
      * 同等の処理をコピーしている.
      *
-     * @see \Cake\Http\ServerRequestFactory::marshalFiles()
      * @param array $files
      * @param \Cake\Http\ServerRequest $request
      * @return \Cake\Http\ServerRequest
+     * @see \Cake\Http\ServerRequestFactory::marshalFiles()
      */
     protected function marshalFiles(array $files, ServerRequest $request): ServerRequest
     {
-        $files = \Laminas\Diactoros\normalizeUploadedFiles($files);
+        $files = normalizeUploadedFiles($files);
         $request = $request->withUploadedFiles($files);
 
         $parsedBody = $request->getParsedBody();
@@ -132,7 +135,7 @@ class Connector extends AbstractBrowser
      * @param \Cake\Http\Response $response Cake response.
      * @return \Symfony\Component\BrowserKit\Response BrowserKit response.
      */
-    protected function filterResponse($response)
+    protected function filterResponse($response): BrowserKitResponse
     {
         $this->cake['response'] = $response;
         if (is_a($response, '\Laminas\Diactoros\Response')) {
@@ -164,7 +167,7 @@ class Connector extends AbstractBrowser
      * @param \Laminas\Diactoros\Response $response
      * @return void
      */
-    private function convertToCakeResponse(\Laminas\Diactoros\Response $response)
+    private function convertToCakeResponse(LaminasDiactorosResponse $response)
     {
         $body = $this->parseBody($response);
         $data = [
@@ -189,7 +192,7 @@ class Connector extends AbstractBrowser
      * @param \Laminas\Diactoros\Response $response
      * @return array
      */
-    private function parseBody(\Laminas\Diactoros\Response $response)
+    private function parseBody(LaminasDiactorosResponse $response): array
     {
         $stream = $response->getBody();
         if ($stream->getMetadata('wrapper_type') === 'plainfile') {
@@ -209,7 +212,7 @@ class Connector extends AbstractBrowser
      * @param array $cookieHeader
      * @return array
      */
-    private function parseCookies(array $cookieHeader)
+    private function parseCookies(array $cookieHeader): array
     {
         $cookies = [];
         foreach ($cookieHeader as $cookie) {
@@ -253,18 +256,15 @@ class Connector extends AbstractBrowser
     /**
      * Makes a request.
      *
-     * @param \Cake\Http\Request $request Cake request.
+     * @param \Cake\Http\ServerRequest $request Cake request.
      * @return \Cake\Http\Response Cake response.
+     * @throws \Exception
      */
     protected function doRequest($request)
     {
-        $response = new Response();
-
         try {
             $response = $this->runApplication($request);
-        } catch (\PHPUnit_Exception $e) {
-            throw $e;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $response = $this->handleError($e);
         }
 
@@ -272,23 +272,21 @@ class Connector extends AbstractBrowser
     }
 
     /**
-     * Run application CakePHP >= 3.4
+     * Run application CakePHP >= 5.0
      *
-     * @return \Cake\Http\Response Cake response.
+     * @return ResponseInterface Cake response.
      */
-    protected function runApplication($request)
+    protected function runApplication($request): ResponseInterface
     {
         $applicationClass = $this->getApplicationClassName();
-        $server = new \Cake\Http\Server(new $applicationClass(CONFIG));
+        $server = new Server(new $applicationClass(CONFIG));
 
         $server->getEventManager()->on(
             'Dispatcher.beforeDispatch',
             ['priority' => 999],
             [$this, 'controllerSpy']
         );
-        $response = $server->run($request);
-
-        return $response;
+        return $server->run($request);
     }
 
     /**
@@ -298,10 +296,10 @@ class Connector extends AbstractBrowser
      * If that class does not exist, the built-in renderer will be used.
      *
      * @param \Exception $exception Exception to handle.
-     * @return void
+     * @return \Cake\Http\Response
      * @throws \Exception
      */
-    protected function handleError($exception)
+    protected function handleError(Exception $exception): Response
     {
         $class = Configure::read('Error.exceptionRenderer');
         if (empty($class) || !class_exists($class)) {
@@ -344,8 +342,8 @@ class Connector extends AbstractBrowser
      */
     public function authSpy(Event $event)
     {
-        if ($event->subject()->Auth) {
-            $this->cake['auth'] = $event->subject()->Auth;
+        if ($event->getSubject()->Auth) {
+            $this->cake['auth'] = $event->getSubject()->Auth;
         }
     }
 
@@ -355,7 +353,7 @@ class Connector extends AbstractBrowser
      */
     public function viewSpy(Event $event)
     {
-        $this->cake['view'] = $event->subject();
+        $this->cake['view'] = $event->getSubject();
     }
 
     /**
@@ -363,7 +361,7 @@ class Connector extends AbstractBrowser
      *
      * @return string
      */
-    protected function getApplicationClassName()
+    protected function getApplicationClassName(): string
     {
         return '\\' . Configure::read('App.namespace') . '\Application';
     }
@@ -373,7 +371,7 @@ class Connector extends AbstractBrowser
      *
      * @return bool
      */
-    protected function hasApplicationClass()
+    protected function hasApplicationClass(): bool
     {
         return class_exists('\\' . Configure::read('App.namespace') . '\Application');
     }
