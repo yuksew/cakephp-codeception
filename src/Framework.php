@@ -3,7 +3,6 @@ namespace Cake\Codeception;
 
 use Cake\Codeception\Helper\ConfigTrait;
 use Cake\Codeception\Helper\DbTrait;
-use Cake\Codeception\Helper\FixtureTrait;
 use Cake\Codeception\Helper\ORMTrait;
 use Cake\Core\Configure;
 use Codeception\TestInterface;
@@ -14,7 +13,6 @@ class Framework extends \Codeception\Lib\Framework
     use ConfigTrait;
     use DbTrait;
     use ORMTrait;
-    use FixtureTrait;
 
     /**
      * Module's default configuration.
@@ -35,21 +33,8 @@ class Framework extends \Codeception\Lib\Framework
     protected $configure = [];
 
     // @codingStandardsIgnoreStart
-    public function _initialize()// @codingStandardsIgnoreEnd
-    {
-        $this->loadFixtureManager();
-    }
-
-    // @codingStandardsIgnoreStart
-    public function _afterSuite()// @codingStandardsIgnoreEnd
-    {
-        $this->shutDownFixtureManager();
-    }
-
-    // @codingStandardsIgnoreStart
     public function _before(TestInterface $test) // @codingStandardsIgnoreEnd
     {
-        $this->loadFixture($test);
         $this->snapshotApplication();
     }
 
@@ -61,8 +46,6 @@ class Framework extends \Codeception\Lib\Framework
         if ($this->config['cleanUpInsertedRecords']) {
             $this->cleanUpInsertedRecords();
         }
-
-        $this->unloadFixture($test);
     }
 
     /**

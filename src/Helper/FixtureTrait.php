@@ -2,6 +2,7 @@
 
 namespace Cake\Codeception\Helper;
 
+use Cake\TestSuite\Fixture\FixtureHelper;
 use Cake\TestSuite\Fixture\FixtureManager;
 use Codeception\Exception\ModuleException;
 use Codeception\TestInterface;
@@ -43,9 +44,9 @@ trait FixtureTrait
      *
      * @return void
      */
-    protected function loadFixtureManager()
+    protected function loadFixtureHelper()
     {
-        $manager = new FixtureManager();
+        $manager = new FixtureHelper();
         $manager->setDebug($this->_getConfig('debug'));
 
         $this->fixtureManager = $manager;
